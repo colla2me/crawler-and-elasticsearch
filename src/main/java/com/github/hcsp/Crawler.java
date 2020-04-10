@@ -11,7 +11,6 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
-import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashSet;
@@ -35,57 +34,66 @@ public class Crawler extends Thread {
         return INDEX.equals(link) || link.startsWith(NEWS);
     }
 
-    private void startCrawling(CloseableHttpClient httpClient) {
+    private Document httpGetAndParse(String link, CloseableHttpClient httpClient) {
+        try (CloseableHttpResponse response = httpClient.execute(new HttpGet(link))) {
+            HttpEntity entity = response.getEntity();
+            String html = EntityUtils.toString(entity);
+            return Jsoup.parse(html);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void storeOnlyNewsIntoDatabase(Document document, String link) {
+        Elements articleTags = document.select("article");
+        if (!articleTags.isEmpty()) {
+            String title = articleTags.get(0).child(0).text();
+            String content = articleTags.stream()
+                    .flatMap(e -> e.select("p").stream())
+                    .map(Element::text)
+                    .collect(Collectors.joining("\n"));
+            System.out.println("link = " + link);
+            System.out.println("title = " + title);
+            System.out.println("content = " + content);
+        }
+    }
+
+    private void parseUrlsFromPageAndStoreIntoDatabase(Document document) {
+        Elements aTags = document.select("a");
+        for (Element aTag : aTags) {
+            String href = aTag.attr("href");
+            if (href.startsWith("//")) {
+                href = "https:" + href;
+            }
+
+            if (!isValidateLink(href)) {
+                continue;
+            }
+
+            unvisitedLinks.add(href);
+        }
+    }
+
+    private void startCrawling() {
+        CloseableHttpClient httpClient = HttpClients.custom()
+                                                    .setUserAgent(USERAGENT)
+                                                    .build();
         String link;
         while ((link = unvisitedLinks.poll()) != null) {
             if (visitedLinks.contains(link)) {
                 continue;
             }
 
-            try (CloseableHttpResponse response = httpClient.execute(new HttpGet(link))) {
-                HttpEntity entity = response.getEntity();
-                String html = EntityUtils.toString(entity);
-
-                Document document = Jsoup.parse(html);
-                Elements articleTags = document.select("article");
-                if (!articleTags.isEmpty()) {
-                    String title = articleTags.get(0).child(0).text();
-                    String content = articleTags.stream()
-                                                .flatMap(e -> e.select("p").stream())
-                                                .map(Element::text)
-                                                .collect(Collectors.joining("\n"));
-                    System.out.println("title = " + title);
-                    System.out.println("content = " + content);
-                }
-
-                Elements aTags = document.select("a");
-                for (Element aTag : aTags) {
-                    String href = aTag.attr("href");
-                    if (href.startsWith("//")) {
-                        href = "https:" + href;
-                    }
-
-                    if (!isValidateLink(href)) {
-                        continue;
-                    }
-
-                    unvisitedLinks.add(href);
-                    System.out.println("href = " + href);
-                }
-
-                visitedLinks.add(link);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
+            Document document = httpGetAndParse(link, httpClient);
+            parseUrlsFromPageAndStoreIntoDatabase(document);
+            storeOnlyNewsIntoDatabase(document, link);
+            visitedLinks.add(link);
         }
     }
 
     @Override
     public void run() {
         unvisitedLinks.add(INDEX);
-        CloseableHttpClient httpClient = HttpClients.custom()
-                                                    .setUserAgent(USERAGENT)
-                                                    .build();
-        startCrawling(httpClient);
+        startCrawling();
     }
 }
