@@ -32,7 +32,9 @@ public class Crawler extends Thread {
         CloseableHttpClient httpClient = HttpClients.custom().setUserAgent(USERAGENT).build();
         String link;
         while ((link = unvisitedLinks.poll()) != null) {
-            if (visitedLinks.contains(link)) continue;
+            if (visitedLinks.contains(link)) {
+                continue;
+            }
 
             try (CloseableHttpResponse response = httpClient.execute(new HttpGet(link))) {
                 HttpEntity entity = response.getEntity();
