@@ -16,6 +16,7 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 public class Crawler extends Thread {
 
@@ -23,13 +24,18 @@ public class Crawler extends Thread {
     private static final String INDEX = "https://sina.cn";
     private static final String NEWS = "https://news.sina.cn";
 
-    public static void main(String[] args) throws IOException {
+    private Set<String> visitedLinks = new HashSet<>();
+    private Deque<String> unvisitedLinks = new ArrayDeque<>();
 
-        Set<String> visitedLinks = new HashSet<>();
-        Deque<String> unvisitedLinks = new ArrayDeque<>();
-        unvisitedLinks.add(INDEX);
+    public static void main(String[] args) {
+        new Crawler().start();
+    }
 
-        CloseableHttpClient httpClient = HttpClients.custom().setUserAgent(USERAGENT).build();
+    private boolean isValidateLink(String link) {
+        return INDEX.equals(link) || link.startsWith(NEWS);
+    }
+
+    private void startCrawling(CloseableHttpClient httpClient) {
         String link;
         while ((link = unvisitedLinks.poll()) != null) {
             if (visitedLinks.contains(link)) {
@@ -44,7 +50,12 @@ public class Crawler extends Thread {
                 Elements articleTags = document.select("article");
                 if (!articleTags.isEmpty()) {
                     String title = articleTags.get(0).child(0).text();
+                    String content = articleTags.stream()
+                                                .flatMap(e -> e.select("p").stream())
+                                                .map(Element::text)
+                                                .collect(Collectors.joining("\n"));
                     System.out.println("title = " + title);
+                    System.out.println("content = " + content);
                 }
 
                 Elements aTags = document.select("a");
@@ -63,17 +74,18 @@ public class Crawler extends Thread {
                 }
 
                 visitedLinks.add(link);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
             }
         }
     }
 
-    private static boolean isValidateLink(String link) {
-        if (INDEX.equals(link) || link.startsWith(NEWS)) {
-            return true;
-        }
-        return false;
-    }
-
     @Override
-    public void run() { }
+    public void run() {
+        unvisitedLinks.add(INDEX);
+        CloseableHttpClient httpClient = HttpClients.custom()
+                                                    .setUserAgent(USERAGENT)
+                                                    .build();
+        startCrawling(httpClient);
+    }
 }
