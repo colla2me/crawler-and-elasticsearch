@@ -61,7 +61,8 @@ public class JdbcCrawlerDao implements CrawlerDao {
     }
 
     @Override
-    public void insertLinkIntoDatabase(String link, String sql) {
+    public void insertLinkIntoDatabase(String link, boolean visited) {
+        String sql = visited ? "insert into VISITED_LINKS (link) values (?)" : "insert into UNVISITED_LINKS (link) values (?)";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, link);
             statement.executeUpdate();
