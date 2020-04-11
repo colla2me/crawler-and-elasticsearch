@@ -71,6 +71,8 @@ public class Crawler extends Thread {
                 href = "https:" + href;
             }
 
+            System.out.println("link = " + href);
+
             if (!isValidateLink(href)) {
                 continue;
             }
