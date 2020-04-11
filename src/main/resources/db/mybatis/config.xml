@@ -21,5 +21,6 @@
     </environments>
     <mappers>
         <mapper resource="db/mybatis/NewsMapper.xml"/>
+        <mapper resource="db/mybatis/MockMapper.xml"/>
     </mappers>
 </configuration>
