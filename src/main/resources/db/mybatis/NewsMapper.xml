@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.github.hcsp.NewsMapper">
+    <select id="getNextUnvisitedLink" resultType="String">
+        select link from UNVISITED_LINKS LIMIT 1
+    </select>
+    <delete id="deleteLink" parameterType="String">
+        delete from UNVISITED_LINKS where link = #{link}
+    </delete>
+    <insert id="insertNews" parameterType="com.github.hcsp.News">
+        insert into NEWS (url, title, content, created_at, MODIFIED_AT)
+        values (#{url}, #{title}, #{content}, now(), now())
+    </insert>
+    <select id="countLink" parameterType="String" resultType="int">
+        select count(link) from VISITED_LINKS where link = #{link}
+    </select>
+    <insert id="insertLink" parameterType="HashMap">
+        insert into
+        <choose>
+            <when test="tableName == 'VISITED_LINKS'">
+                VISITED_LINKS
+            </when>
+            <otherwise>
+                UNVISITED_LINKS
+            </otherwise>
+        </choose>
+        (link)
+        values (#{link})
+    </insert>
+</mapper>

@@ -20,7 +20,7 @@ public class Crawler extends Thread {
     private static final String NEWS = "https://news.sina.cn";
     private static final String TECH = "https://tech.sina.cn/";
 
-    private CrawlerDao dao = new JdbcCrawlerDao();
+    private CrawlerDao dao = new MyBatisCrawlerDao();
 
     public static void main(String[] args) {
         new Crawler().start();
@@ -73,7 +73,7 @@ public class Crawler extends Thread {
             }
 
             System.out.println("link = " + href);
-            dao.insertLinkIntoDatabase(href, "insert into UNVISITED_LINKS (link) values (?)");
+            dao.insertLinkIntoDatabase(href, false);
         }
     }
 
@@ -91,7 +91,7 @@ public class Crawler extends Thread {
                 Document document = httpGetAndParse(link, httpClient);
                 parseUrlsFromPageAndStoreIntoDatabase(document);
                 storeOnlyNewsIntoDatabase(document, link);
-                dao.insertLinkIntoDatabase(link, "insert into VISITED_LINKS (link) values (?)");
+                dao.insertLinkIntoDatabase(link, true);
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
