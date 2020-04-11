@@ -7,7 +7,7 @@
 - [x] 使用数据库实现数据持久化
 - [x] 使用 MyBatis
 - [x] 使用 Docker 和 MySQL
-- [ ] 多线程爬虫
+- [x] 多线程爬虫
 - [ ] 数据库索引优化
 - [ ] 使用 Elasticsearch
 
