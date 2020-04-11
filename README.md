@@ -8,6 +8,6 @@
 - [x] 使用 MyBatis
 - [x] 使用 Docker 和 MySQL
 - [x] 多线程爬虫
-- [ ] 数据库索引优化
+- [x] 数据库索引优化
 - [ ] 使用 Elasticsearch
 
