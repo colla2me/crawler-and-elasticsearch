@@ -53,9 +53,9 @@ public class Crawler extends Thread {
                     .flatMap(e -> e.select("p").stream())
                     .map(Element::text)
                     .collect(Collectors.joining("\n"));
-            System.out.println("link = " + link);
-            System.out.println("title = " + title);
-            System.out.println("content = " + content);
+//            System.out.println("link = " + link);
+//            System.out.println("title = " + title);
+//            System.out.println("content = " + content);
         }
     }
 
@@ -63,6 +63,10 @@ public class Crawler extends Thread {
         Elements aTags = document.select("a");
         for (Element aTag : aTags) {
             String href = aTag.attr("href");
+            if (href.isEmpty()) {
+                continue;
+            }
+
             if (href.startsWith("//")) {
                 href = "https:" + href;
             }
@@ -73,6 +77,7 @@ public class Crawler extends Thread {
                 continue;
             }
 
+            System.out.println("link = " + href);
             insertLinkIntoDatabase(connection, href, "insert into UNVISITED_LINKS (link) values (?)");
         }
     }
