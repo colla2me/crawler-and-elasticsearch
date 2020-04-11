@@ -20,10 +20,10 @@ public class Crawler extends Thread {
     private static final String NEWS = "https://news.sina.cn";
     private static final String TECH = "https://tech.sina.cn/";
 
-    private CrawlerDao dao = new MyBatisCrawlerDao();
+    private CrawlerDao dao;
 
-    public static void main(String[] args) {
-        new Crawler().start();
+    public Crawler(CrawlerDao dao) {
+        this.dao = dao;
     }
 
     private boolean isValidateLink(String link) {
@@ -65,8 +65,6 @@ public class Crawler extends Thread {
             if (href.startsWith("//")) {
                 href = "https:" + href;
             }
-
-            System.out.println("link = " + href);
 
             if (!isValidateLink(href)) {
                 continue;
