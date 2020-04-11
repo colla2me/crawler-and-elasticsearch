@@ -9,5 +9,5 @@
 - [x] 使用 Docker 和 MySQL
 - [x] 多线程爬虫
 - [x] 数据库索引优化
-- [ ] 使用 Elasticsearch
+- [x] 使用 Elasticsearch
 

@@ -12,13 +12,14 @@ import org.elasticsearch.search.builder.SearchSourceBuilder;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 
 public class ElasticsearchEngine {
     public static void main(String[] args) throws IOException {
         while (true) {
             System.out.println("Please input a search keyword:");
 
-            BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+            BufferedReader reader = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8));
 
             String keyword = reader.readLine();
 
