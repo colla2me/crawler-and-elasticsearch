@@ -1,5 +1,6 @@
 package com.github.hcsp;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.http.HttpEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -23,6 +24,8 @@ public class Crawler extends Thread {
     private static final String USERAGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.100 Safari/537.36";
     private static final String INDEX = "https://sina.cn";
     private static final String NEWS = "https://news.sina.cn";
+    private static final String USER = "root";
+    private static final String PASSWORD = "root";
 
     public static void main(String[] args) {
         new Crawler().start();
@@ -68,44 +71,52 @@ public class Crawler extends Thread {
                 continue;
             }
 
-            insertLinkIntoUnvisited(connection, href);
+            insertLinkIntoDatabase(connection, href, "insert into UNVISITED_LINKS (link) values (?)");
         }
     }
 
-    private void startCrawling(Connection connection) {
+    @SuppressFBWarnings("DMI_CONSTANT_DB_PASSWORD")
+    private void startCrawling() {
         CloseableHttpClient httpClient = HttpClients.custom()
                 .setUserAgent(USERAGENT)
                 .build();
-        while (true) {
-            List<String> unvisitedLinks = loadUrlsFromDatabase(connection, "select link from UNVISITED_LINKS");
-            if (unvisitedLinks.isEmpty()) {
-                break;
+        try (Connection connection = DriverManager.getConnection("jdbc:h2:file:/Users/samuel/IdeaProjects/crawler-and-elasticsearch/news", USER, PASSWORD)){
+            while (true) {
+                List<String> unvisitedLinks = loadUrlsFromDatabase(connection, "select link from UNVISITED_LINKS");
+                if (unvisitedLinks.isEmpty()) {
+                    break;
+                }
+
+                String link = unvisitedLinks.remove(unvisitedLinks.size() - 1);
+                deleteLinkFromDatabase(connection, link);
+
+                if (isVisitedLink(connection, link)) {
+                    continue;
+                }
+
+                Document document = httpGetAndParse(link, httpClient);
+                parseUrlsFromPageAndStoreIntoDatabase(document, connection);
+                storeOnlyNewsIntoDatabase(document, link);
+                insertLinkIntoDatabase(connection, link, "insert into VISITED_LINKS (link) values (?)");
             }
-
-            String link = unvisitedLinks.remove(unvisitedLinks.size() - 1);
-            deleteLinkFromDatabase(connection, link);
-
-            if (isVisitedLink(connection, link)) {
-                continue;
-            }
-
-            Document document = httpGetAndParse(link, httpClient);
-            parseUrlsFromPageAndStoreIntoDatabase(document, connection);
-            storeOnlyNewsIntoDatabase(document, link);
-            insertLinkIntoVisited(connection, link);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 
-    private List<String> loadUrlsFromDatabase(Connection connection, String sql) {
+    private List<String> loadUrlsFromDatabase(Connection connection, String sql) throws Exception {
         List<String> results = new ArrayList<>();
+        ResultSet resultSet = null;
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
-            ResultSet resultSet = statement.executeQuery();
+            resultSet = statement.executeQuery();
             while (resultSet.next()) {
                 results.add(resultSet.getString(1));
             }
             return results;
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+        } finally {
+            if (resultSet != null) {
+                resultSet.close();
+            }
         }
     }
 
@@ -118,8 +129,8 @@ public class Crawler extends Thread {
         }
     }
 
-    private void insertLinkIntoUnvisited(Connection connection, String link) {
-        try (PreparedStatement statement = connection.prepareStatement("insert into UNVISITED_LINKS (link) values (?)")) {
+    private void insertLinkIntoDatabase(Connection connection, String link, String sql) {
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, link);
             statement.executeUpdate();
         } catch (Exception e) {
@@ -127,31 +138,21 @@ public class Crawler extends Thread {
         }
     }
 
-    private void insertLinkIntoVisited(Connection connection, String link) {
-        try (PreparedStatement statement = connection.prepareStatement("insert into VISITED_LINKS (link) values (?)")) {
-            statement.setString(1, link);
-            statement.executeUpdate();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private boolean isVisitedLink(Connection connection, String link) {
+    private boolean isVisitedLink(Connection connection, String link) throws Exception {
+        ResultSet resultSet = null;
         try (PreparedStatement statement = connection.prepareStatement("select link from VISITED_LINKS where link = ?")) {
             statement.setString(1, link);
-            ResultSet resultSet = statement.executeQuery();
+            resultSet = statement.executeQuery();
             return resultSet.next();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+        } finally {
+            if (resultSet != null) {
+                resultSet.close();
+            }
         }
     }
 
     @Override
     public void run() {
-        try (Connection connection = DriverManager.getConnection("jdbc:h2:file:/Users/samuel/IdeaProjects/crawler-and-elasticsearch/news", "root", "root")) {
-            startCrawling(connection);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        startCrawling();
     }
 }
