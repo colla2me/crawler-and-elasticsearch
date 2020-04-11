@@ -23,6 +23,7 @@
 hs_err_pid*
 .DS_Store
 *.iml
+*.db
 .idea/
 target/
 
