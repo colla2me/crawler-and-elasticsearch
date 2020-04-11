@@ -16,7 +16,6 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.util.*;
 import java.util.stream.Collectors;
 
 public class Crawler extends Thread {
@@ -24,6 +23,7 @@ public class Crawler extends Thread {
     private static final String USERAGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.100 Safari/537.36";
     private static final String INDEX = "https://sina.cn";
     private static final String NEWS = "https://news.sina.cn";
+    private static final String TECH = "https://tech.sina.cn/";
     private static final String USER = "root";
     private static final String PASSWORD = "root";
 
@@ -32,7 +32,7 @@ public class Crawler extends Thread {
     }
 
     private boolean isValidateLink(String link) {
-        return INDEX.equals(link) || link.startsWith(NEWS);
+        return link.startsWith(INDEX) || link.startsWith(NEWS) || link.startsWith(TECH);
     }
 
     private Document httpGetAndParse(String link, CloseableHttpClient httpClient) {
@@ -67,6 +67,8 @@ public class Crawler extends Thread {
                 href = "https:" + href;
             }
 
+            System.out.println("link = " + href);
+
             if (!isValidateLink(href)) {
                 continue;
             }
@@ -81,15 +83,8 @@ public class Crawler extends Thread {
                 .setUserAgent(USERAGENT)
                 .build();
         try (Connection connection = DriverManager.getConnection("jdbc:h2:file:/Users/samuel/IdeaProjects/crawler-and-elasticsearch/news", USER, PASSWORD)){
-            while (true) {
-                List<String> unvisitedLinks = loadUrlsFromDatabase(connection, "select link from UNVISITED_LINKS");
-                if (unvisitedLinks.isEmpty()) {
-                    break;
-                }
-
-                String link = unvisitedLinks.remove(unvisitedLinks.size() - 1);
-                deleteLinkFromDatabase(connection, link);
-
+            String link;
+            while ((link = getNextLinkThenDelete(connection)) != null) {
                 if (isVisitedLink(connection, link)) {
                     continue;
                 }
@@ -104,20 +99,22 @@ public class Crawler extends Thread {
         }
     }
 
-    private List<String> loadUrlsFromDatabase(Connection connection, String sql) throws Exception {
-        List<String> results = new ArrayList<>();
-        ResultSet resultSet = null;
-        try (PreparedStatement statement = connection.prepareStatement(sql)) {
-            resultSet = statement.executeQuery();
+    private String getNextLink(Connection connection) throws Exception {
+        try (PreparedStatement statement = connection.prepareStatement("select link from UNVISITED_LINKS LIMIT 1");
+             ResultSet resultSet = statement.executeQuery()) {
             while (resultSet.next()) {
-                results.add(resultSet.getString(1));
-            }
-            return results;
-        } finally {
-            if (resultSet != null) {
-                resultSet.close();
+                return resultSet.getString(1);
             }
         }
+        return null;
+    }
+
+    private String getNextLinkThenDelete(Connection connection) throws Exception {
+        String link = getNextLink(connection);
+        if (link != null) {
+            deleteLinkFromDatabase(connection, link);
+        }
+        return link;
     }
 
     private void deleteLinkFromDatabase(Connection connection, String link) {
